@@ -8,15 +8,19 @@ mid-stream for a terminal ``error`` / ``RUN_ERROR`` / transport failure).
 
 from __future__ import annotations
 
+import asyncio
 import itertools
 from collections import deque
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from typing import Any
 
 from prismal_sdk import ThreadCreated
 from prismal_sdk.agui import StreamProtocol
 
-ScriptItem = Any  # an SDK event model or a BaseException instance
+ScriptItem = Any  # an SDK event model, a BaseException instance, or HANG
+
+#: Script item: block forever (until the consumer cancels) — a stalled turn.
+HANG = object()
 
 
 class FakeAsyncPrismalClient:
@@ -32,6 +36,11 @@ class FakeAsyncPrismalClient:
         self.streams_completed = 0
         self.streams_closed_early = 0
         self.closed = False
+        #: Set when a script reaches HANG.
+        self.hanging = asyncio.Event()
+        self.create_thread_error: BaseException | None = None
+        #: Called before each script item is produced (snapshot live state).
+        self.before_item: Callable[[], None] | None = None
 
     # -- scripting -----------------------------------------------------------
     def queue_turn(
@@ -41,6 +50,8 @@ class FakeAsyncPrismalClient:
 
     # -- AsyncPrismalClient surface used by the webchat ------------------------
     async def create_thread(self) -> ThreadCreated:
+        if self.create_thread_error is not None:
+            raise self.create_thread_error
         self.threads_created += 1
         return ThreadCreated(thread_id=f"thread-{next(self._ids)}")
 
@@ -58,6 +69,11 @@ class FakeAsyncPrismalClient:
         finished = False
         try:
             for item in script:
+                if self.before_item is not None:
+                    self.before_item()
+                if item is HANG:
+                    self.hanging.set()
+                    await asyncio.Event().wait()
                 if isinstance(item, BaseException):
                     finished = True  # an error ends the stream; not an early close
                     raise item

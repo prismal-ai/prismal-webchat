@@ -55,6 +55,13 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-00-04 | `DONE` | `tests/boundary.py` AST scanner (static, `from x import y`, `importlib`/`__import__` literals; httpx/requests/aiohttp/urllib3/urllib.request/http.client) + `test_boundary.py` |
 | WCB-00-05 + D-02 | `DONE` | `tests/fakes.py` (`FakeAsyncPrismalClient`: raise-in-place, early-close tracking, verbatim `sent`), `tests/scripts.py` (classic + AG-UI via SDK `parse_agui_event` / `error_for_code`), `tests/conftest.py` |
 | WCB-00-06 | `BLOCKED` | Waiting for `prismal-sdk` on PyPI |
+| WCB-01-01 | `DONE` | `client.py`: lazy process-wide client, `client_lifespan` registered on the app (closes at shutdown), sticky AG-UI fallback flag |
+| WCB-01-02 | `DONE` | `state/models.py`: `ChatMessage`, `ToolActivity`, `ChatView` protocol |
+| WCB-01-03…06 | `DONE` | `state/chat.py`: `send` (regular) → `stream_turn` (**background**, so Stop is processed mid-turn); one `async with self` per event; Stop cancels the in-flight task → `aclosing` unwinds the SDK stream; tab teardown re-raises `CancelledError`; content verbatim via backend-only `_pending_content` |
+| WCB-D-04 | `DONE` | `state/mapping.py` (classic) + `state/agui_mapper.py`; table-driven tests incl. interleaving, nested sub-agents (`subagent_run_id`), ignored/unknown events |
+| WCB-D-05 | `DONE` | AG-UI behind `agui_enabled`; `ProtocolNotEnabledError` → one classic resend, sticky per process |
+| WCB-02-02 (core) | `WIP` | `errors.py` table + error bubble data (partial text kept, `retryable`); **retry action + UI pending (Phase 2)** |
+| WCB-S-01 | `WIP` | Remaining: runtime check that dataclass list vars + background task push updates in a real browser (do with the Phase 2 panel) |
 | WCB-04-03 | `BLOCKED` | Same |
 
 ---

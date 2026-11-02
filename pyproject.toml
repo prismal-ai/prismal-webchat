@@ -43,6 +43,10 @@ extend-exclude = [".web", ".states"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+# rx.State var defaults are copied per instance by Reflex, not shared.
+"prismal_webchat/state/*.py" = ["RUF012"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

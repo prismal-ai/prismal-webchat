@@ -10,6 +10,8 @@ from __future__ import annotations
 import reflex as rx
 from reflex_silverpoint_react import silverpoint_provider, sp_surface
 
+from prismal_webchat.client import client_lifespan
+
 
 def index() -> rx.Component:
     return silverpoint_provider(
@@ -31,4 +33,5 @@ def index() -> rx.Component:
 
 
 app = rx.App()
+app.register_lifespan_task(client_lifespan)
 app.add_page(index, route="/", title="prismal")

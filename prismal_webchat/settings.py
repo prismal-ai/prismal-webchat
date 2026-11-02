@@ -8,6 +8,7 @@ client constructor (SPEC-WCB-AUT-001/002).
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -75,3 +76,9 @@ class WebchatSettings(BaseSettings):
         if bad:
             raise ValueError(f"embed_origins entries must be scheme://host[:port]; got {bad}")
         return value
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> WebchatSettings:
+    """Process-wide settings, read once (fail-fast at first use)."""
+    return WebchatSettings()
