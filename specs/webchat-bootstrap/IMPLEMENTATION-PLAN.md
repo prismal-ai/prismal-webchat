@@ -45,6 +45,15 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 - DELTA-2026-10 names the sub-agent key `subagent_id`; the SDK (`prismal_sdk.agui.SubagentStarted/Finished`) exposes **`subagent_run_id`**. The widget follows the SDK; `docs/agui.md` must record the real field.
 - `budget_exceeded` fixture pinned in `tests/scripts.py::budget_exceeded` (402, `scope`/`limit`/`consumed` details, built via `error_for_code`).
 
+### Findings for Phase 3 (feed WCB-04-03/04 docs)
+
+- `embed.js` lives in `assets/` (Reflex serves it at `/embed.js`), not `prismal_webchat/embed/` as ARCHITECTURE §3 sketched; `demo.html` stays in `prismal_webchat/embed/`.
+- The CSP header only exists where the Python backend serves the page: **prod `--single-port`** (and Docker). `reflex run` dev serves the frontend from Vite on :3000 without it — embedding policy must be verified in prod mode.
+- Prod single-port needs equal ports: `reflex run --env prod --single-port --frontend-port 8001 --backend-port 8001` (rxconfig keeps 3000/8001 for dev).
+- `/chat` answers `307 → /chat/`; `embed.js` points at `/chat` and the redirect carries the CSP too.
+- `'self'` is always in `frame-ancestors`; the allowlist is appended.
+- Prod builds show Reflex's "Built with Reflex" badge bottom-right, overlapping the widget's Send button; `show_built_with_reflex=False` removes it — **owner decision pending**.
+
 ### Progress
 
 | Task | Status | Notes |
@@ -60,6 +69,7 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-D-04 | `DONE` | `state/mapping.py` (classic) + `state/agui_mapper.py`; table-driven tests incl. interleaving, nested sub-agents (`subagent_run_id`), ignored/unknown events |
 | WCB-D-05 | `DONE` | AG-UI behind `agui_enabled`; `ProtocolNotEnabledError` → one classic resend, sticky per process |
 | WCB-02-01…06, S-02, S-03, D-06, D-07, D-08 (UI) | `DONE` | `components/theme.py` (light silverpoint+accent / dark cyanotype / auto via `color_mode_cond`, fail-fast contrast), `components/chat_panel.py` (bubbles seeded by id, skeleton, chips, sub-agent line, `sp_alert`+Retry, opt-in token footer, `role=log` + `aria-live`), `components/input_bar.py` (`sp_input` form, Send/Stop, focus after send), `ChatState.retry` (one per failure, never automatic) |
+| WCB-03-01…05 | `DONE` | `/chat` bare route (same `ChatState`, in-chat Close → `postMessage`); `embedding.py` ASGI middleware via `api_transformer` adds `frame-ancestors 'self' <origins>` to **every** response (kept alongside any existing CSP); `assets/embed.js` derives its origin from `document.currentScript` (no config, no URL/secret), lazy iframe, `aria-expanded`, Escape, `window.PrismalChat`, `event.origin` check; `prismal_webchat/embed/demo.html` + checklist. Verified in headless Chrome (prod single-port): allowed origin opens and chats, in-chat Close works, forged same-page message ignored, other origin refused by CSP |
 | WCB-S-01 | `DONE` | Verified in headless Chrome against `prismal-server` fake-LLM mode: live token streaming, input clears + keeps focus, `/error` → friendly bubble + Retry, raw HTML inert, links `noopener`, no server URL in page, dark theme renders |
 | WCB-04-03 | `BLOCKED` | Same |
 
