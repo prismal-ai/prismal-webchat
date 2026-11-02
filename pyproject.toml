@@ -53,6 +53,11 @@ strict = true
 exclude = ["^\\.web/", "^tests/"]
 
 [[tool.mypy.overrides]]
+# Reflex element builders (rx.el.*, rx.cond, …) are typed as returning Any.
+module = ["prismal_webchat.components.*", "prismal_webchat.webchat"]
+warn_return_any = false
+
+[[tool.mypy.overrides]]
 # Ships .pyi stubs but no py.typed marker.
 module = ["reflex_silverpoint_react", "reflex_silverpoint_react.*"]
 follow_untyped_imports = true

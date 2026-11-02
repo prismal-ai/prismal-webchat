@@ -4,7 +4,7 @@
 |---|---|
 | **Author** | Ernesto Crespo |
 | **Status** | `ACTIVE` |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Date** | 2026-11-02 |
 | **Inputs** | [`PLAN.md`](./PLAN.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`SPEC.md`](./SPEC.md) · [`TASKS.md`](./TASKS.md) · [`DELTA-2026-10-usage-agui.md`](./DELTA-2026-10-usage-agui.md) · [`DELTA-2026-11-uv-silverpoint.md`](./DELTA-2026-11-uv-silverpoint.md) |
 | **Target** | `v0.1.0` (bootstrap + the 2026-10 delta folded in, as that delta states) |
@@ -49,7 +49,6 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 
 | Task | Status | Notes |
 |---|---|---|
-| WCB-S-01 | `WIP` | `uv run reflex run` compiles with `@silverpoint/react@0.9.1`; `sp_surface` renders inside `silverpoint_provider`. Handlers/`rx.markdown`/lifespan confirmed as part of WCB-01-*. |
 | WCB-00-02 | `DONE` | `pyproject.toml` (pins + `package = false`), `uv.lock`, `reflex.lock/` (npm), `rxconfig.py` (`app_module_import`, frontend `:3000`, backend `:8001`), `prismal_webchat/webchat.py`; tests `test_dependencies.py`, `test_app_skeleton.py` |
 | WCB-00-03 + D-03 | `DONE` | `prismal_webchat/settings.py` (frozen, `SecretStr` token, URL/theme/origin validation, `agui_enabled`/`show_usage`); `pydantic-settings` now a direct dep |
 | WCB-00-04 | `DONE` | `tests/boundary.py` AST scanner (static, `from x import y`, `importlib`/`__import__` literals; httpx/requests/aiohttp/urllib3/urllib.request/http.client) + `test_boundary.py` |
@@ -60,8 +59,8 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-01-03…06 | `DONE` | `state/chat.py`: `send` (regular) → `stream_turn` (**background**, so Stop is processed mid-turn); one `async with self` per event; Stop cancels the in-flight task → `aclosing` unwinds the SDK stream; tab teardown re-raises `CancelledError`; content verbatim via backend-only `_pending_content` |
 | WCB-D-04 | `DONE` | `state/mapping.py` (classic) + `state/agui_mapper.py`; table-driven tests incl. interleaving, nested sub-agents (`subagent_run_id`), ignored/unknown events |
 | WCB-D-05 | `DONE` | AG-UI behind `agui_enabled`; `ProtocolNotEnabledError` → one classic resend, sticky per process |
-| WCB-02-02 (core) | `WIP` | `errors.py` table + error bubble data (partial text kept, `retryable`); **retry action + UI pending (Phase 2)** |
-| WCB-S-01 | `WIP` | Remaining: runtime check that dataclass list vars + background task push updates in a real browser (do with the Phase 2 panel) |
+| WCB-02-01…06, S-02, S-03, D-06, D-07, D-08 (UI) | `DONE` | `components/theme.py` (light silverpoint+accent / dark cyanotype / auto via `color_mode_cond`, fail-fast contrast), `components/chat_panel.py` (bubbles seeded by id, skeleton, chips, sub-agent line, `sp_alert`+Retry, opt-in token footer, `role=log` + `aria-live`), `components/input_bar.py` (`sp_input` form, Send/Stop, focus after send), `ChatState.retry` (one per failure, never automatic) |
+| WCB-S-01 | `DONE` | Verified in headless Chrome against `prismal-server` fake-LLM mode: live token streaming, input clears + keeps focus, `/error` → friendly bubble + Retry, raw HTML inert, links `noopener`, no server URL in page, dark theme renders |
 | WCB-04-03 | `BLOCKED` | Same |
 
 ---
@@ -117,7 +116,7 @@ No `sp_chat` exists, so `components/` builds the chat from these builders
 | Sub-agent progress line | `sp_progress` (indeterminate line) + text | "working on: <name>" / "working…" (`AGU-004`). |
 | Error bubble | `sp_alert(kind="error", title=…)` + `sp_button("Retry")` | Friendly copy only (`ERR-001/002`); no retry for `budget_exceeded` (DELTA-10 `ERR-002`). |
 | Usage footer (opt-in) | muted `rx.text` / `sp_tag` | Only when `show_usage=True`; `total_tokens` only (`USG-002`). |
-| Input | `sp_textarea(value=…, on_change=…, label=…, disabled=…)` | Controlled; Enter-to-send via key handler (`NFR-004`). |
+| Input | `sp_input(value=…, on_change=…, label=…)` inside `rx.el.form(on_submit=…)` | Controlled; Enter submits natively (`NFR-004`; `sp_textarea` has no key events — DELTA-2026-11 v1.2). |
 | Send / Stop | `sp_button` (`primary`) / `sp_button` (`danger`) | Send disabled while streaming; Stop shown (`CHT-004`). |
 | Welcome bubble | same bubble component, presentational | Not sent to the engine (`CHT-007`). |
 

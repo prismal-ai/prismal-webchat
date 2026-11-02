@@ -39,11 +39,17 @@ def state(wire: dict[str, Any]) -> ChatState:
     return ChatState()
 
 
+def chains_stream_turn(gen: Any) -> bool:
+    """Drain a handler; True when it chained ``stream_turn``."""
+    flat: list[Any] = []
+    for out in gen or ():
+        flat.extend(out if isinstance(out, list) else [out])
+    return any(getattr(spec, "fn", None) is ChatState.stream_turn.fn for spec in flat)
+
+
 def type_and_send(state: ChatState, text: str) -> bool:
-    """Run ``send`` to completion; True when it chained ``stream_turn``."""
     state.set_input_text(text)
-    chained = [spec for spec in ChatState.send.fn(state) or () if spec is not None]
-    return any(getattr(spec, "fn", None) is ChatState.stream_turn.fn for spec in chained)
+    return chains_stream_turn(ChatState.send.fn(state))
 
 
 async def turn(state: ChatState, text: str) -> None:
@@ -157,6 +163,7 @@ async def test_midstream_error_keeps_partial_text_and_reenables_input(
         True,
     )
     assert state.streaming is False
+    assert len(fake_client.sent) == 1  # never auto-retried (SPEC-WCB-ERR-004)
 
 
 async def test_budget_refusal_has_no_retry(
@@ -280,3 +287,41 @@ async def test_agui_run_error_maps_and_keeps_partial_text(
 
     last = state.messages[-1]
     assert (last.text, last.kind, last.error_text) == ("Half", "error", BUDGET_TEXT)
+
+
+# ── ERR-004: retry is a visitor action ───────────────────────────────────────
+
+
+async def test_retry_resends_same_content_on_same_thread(
+    state: ChatState, fake_client: FakeAsyncPrismalClient
+) -> None:
+    fake_client.queue_turn(scripts.classic_midstream_error("Part"))
+    fake_client.queue_turn(scripts.classic_text("Full answer"))
+    await turn(state, "the question")
+    failed = state.messages[-1]
+
+    assert chains_stream_turn(ChatState.retry.fn(state, failed.id))
+    await ChatState.stream_turn.fn(state)
+
+    assert [(t, c) for t, c, _ in fake_client.sent] == [
+        ("thread-1", "the question"),
+        ("thread-1", "the question"),
+    ]
+    assert [m.role for m in state.messages] == ["user", "assistant", "assistant"]
+    assert state.messages[1].text == "Part"  # the failed bubble keeps its text
+    assert state.messages[1].retryable is False  # one retry per failure
+    assert state.messages[2].text == "Full answer"
+
+
+async def test_no_retry_for_budget_or_while_streaming(
+    state: ChatState, fake_client: FakeAsyncPrismalClient
+) -> None:
+    fake_client.queue_turn(scripts.budget_exceeded())
+    await turn(state, "q")
+    budget_msg = state.messages[-1]
+    assert not chains_stream_turn(ChatState.retry.fn(state, budget_msg.id))
+
+    fake_client.queue_turn(scripts.classic_midstream_error("x"))
+    await turn(state, "q2")
+    state.streaming = True
+    assert not chains_stream_turn(ChatState.retry.fn(state, state.messages[-1].id))

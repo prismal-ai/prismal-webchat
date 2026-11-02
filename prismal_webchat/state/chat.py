@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 import uuid
 from collections.abc import AsyncGenerator, Callable
@@ -39,6 +40,10 @@ Mapper = Callable[..., bool]
 #: In-flight turn per tab (client token) so Stop can cancel it promptly,
 #: even while the host is silent (heartbeats never reach the iterator).
 _inflight: dict[str, asyncio.Task[Any]] = {}
+
+
+#: DOM id of the message input (focus management, SPEC-WCB-NFR-004).
+INPUT_ID = "prismal-chat-input"
 
 
 def _new_id() -> str:
@@ -79,7 +84,39 @@ class ChatState(rx.State):
         self._stop_requested = False
         self._pending_content = content
         yield
+        yield [ChatState.stream_turn, rx.set_focus(INPUT_ID)]
+
+    @rx.event
+    def retry(self, message_id: str) -> Any:
+        """Visitor-initiated resend of the same content on the same thread.
+
+        Never automatic (SPEC-WCB-ERR-004); one retry per failed bubble, which
+        keeps its partial text (ERR-003).
+        """
+        if self.streaming:
+            return
+        index = next((i for i, m in enumerate(self.messages) if m.id == message_id), None)
+        if index is None:
+            return
+        failed = self.messages[index]
+        if failed.kind != "error" or not failed.retryable:
+            return
+        content = next((m.text for m in reversed(self.messages[:index]) if m.role == "user"), None)
+        if content is None:
+            return
+        messages = list(self.messages)
+        messages[index] = dataclasses.replace(failed, retryable=False)
+        self.messages = [*messages, ChatMessage(id=_new_id(), role="assistant")]
+        self.streaming = True
+        self._stop_requested = False
+        self._pending_content = content
+        yield
         yield ChatState.stream_turn
+
+    @rx.var
+    def live_id(self) -> str:
+        """Id of the assistant bubble being streamed ("" when idle)."""
+        return self.messages[-1].id if self.streaming and self.messages else ""
 
     @rx.event
     def stop_streaming(self) -> None:

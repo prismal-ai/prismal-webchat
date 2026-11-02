@@ -59,7 +59,7 @@ Point it at a server and brand it via environment variables:
 export PRISMAL_WEBCHAT_SERVER_URL="https://my-prismal-server.example.com"
 export PRISMAL_WEBCHAT_TOKEN="…"            # service credential, never reaches the browser
 export PRISMAL_WEBCHAT_TITLE="Acme Assistant"
-export PRISMAL_WEBCHAT_ACCENT_COLOR="#0EA5E9"
+export PRISMAL_WEBCHAT_ACCENT_COLOR="#096D9A"   # must pass silverpoint contrast (4.5:1)
 ```
 
 ## Embedding

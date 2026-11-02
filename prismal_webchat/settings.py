@@ -8,6 +8,7 @@ client constructor (SPEC-WCB-AUT-001/002).
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
@@ -18,6 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Theme = Literal["light", "dark", "auto"]
 
 _HTTP_SCHEMES = ("http", "https")
+_HEX_COLOR = re.compile(r"#[0-9A-Fa-f]{6}")
 
 
 def _is_origin(value: str) -> bool:
@@ -51,7 +53,9 @@ class WebchatSettings(BaseSettings):
     # Presentation (non-secret)
     title: str = "prismal"
     welcome_message: str = "Hi! How can I help?"
-    accent_color: str = "#6C5CE7"
+    # #5D4BE5 (not the original #6C5CE7, 3.94:1) passes silverpoint's 4.5:1
+    # ink contrast on the cream ground (DELTA-2026-11, SPEC-WCB-UI-002).
+    accent_color: str = "#5D4BE5"
     theme: Theme = "light"
 
     # Embedding (frame-ancestors allowlist; empty => 'self')
@@ -68,6 +72,13 @@ class WebchatSettings(BaseSettings):
         if parts.scheme not in _HTTP_SCHEMES or not parts.hostname:
             raise ValueError("server_url must be an absolute http(s):// URL")
         return value.rstrip("/")
+
+    @field_validator("accent_color")
+    @classmethod
+    def _hex_color(cls, value: str) -> str:
+        if not _HEX_COLOR.fullmatch(value):
+            raise ValueError("accent_color must be a #RRGGBB hex colour")
+        return value.upper()
 
     @field_validator("embed_origins")
     @classmethod

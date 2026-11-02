@@ -37,7 +37,7 @@ def test_defaults_boot_against_local_host() -> None:
     assert s.org_id is None
     assert s.title == "prismal"
     assert s.welcome_message == "Hi! How can I help?"
-    assert s.accent_color == "#6C5CE7"
+    assert s.accent_color == "#5D4BE5"
     assert s.theme == "light"
     assert s.embed_origins == []
     assert s.agui_enabled is False
