@@ -62,8 +62,9 @@ mapping, or webchat-side conversation persistence is a bug.
       green. Unit tests use `FakeAsyncPrismalClient` (offline, no frontend
       compile); anything touching a live server goes in the opt-in
       `tests/contract/` suite (`SPEC-WCB-NFR-001`).
-- [ ] Dep pins stay `reflex>=0.8,<0.9` and `prismal-sdk>=0.1,<1`; bumps are
-      deliberate PRs (`SPEC-WCB-NFR-005`).
+- [ ] Dep pins stay `reflex>=0.10,<0.11`, `reflex-silverpoint-react>=0.9.1,<0.10`
+      and `prismal-sdk>=0.2.0.dev0,<1`; bumps are deliberate PRs
+      (`SPEC-WCB-NFR-005`, DELTA-2026-10/11; `tests/unit/test_dependencies.py`).
 - [ ] `ruff check .` and `mypy prismal_webchat` are clean.
 - [ ] New capability traces to a `SPEC-WCB-*` requirement — if the wire
       contract must change, that is negotiated in `prismal-server` /
@@ -72,8 +73,8 @@ mapping, or webchat-side conversation persistence is a bug.
 ## Common commands
 
 ```bash
-uv pip install -e ".[dev]"
-reflex run                          # dev server (frontend + backend + WS)
+uv sync                             # .venv from uv.lock (dev group included)
+uv run reflex run                   # dev server: frontend :3000, backend :8001
 uv run pytest                       # unit (offline, FakeAsyncPrismalClient)
 uv run pytest -m contract           # opt-in: against a running prismal-server
 uv run ruff check . && uv run ruff format --check .
@@ -82,7 +83,8 @@ uv run mypy prismal_webchat
 
 Local end-to-end: start a `prismal-server` (`uvicorn prismal_server.app:app`)
 and point the webchat at it via `PRISMAL_WEBCHAT_SERVER_URL` (defaults to
-`http://localhost:8000`).
+`http://localhost:8000`). Until `prismal-sdk` is on PyPI, `uv sync` expects
+the sibling checkout at `../prismal-sdk` (`[tool.uv.sources]`).
 
 ## Boundary examples
 

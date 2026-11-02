@@ -1,0 +1,53 @@
+[project]
+name = "prismal-webchat"
+version = "0.1.0.dev0"
+description = "Embeddable web chat (Reflex BFF) for the prismal ecosystem"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Ernesto Crespo", email = "ecrespo@gmail.com" }]
+requires-python = ">=3.11"
+# Pins are deliberate (SPEC-WCB-NFR-005, DELTA-2026-10, DELTA-2026-11);
+# tests/unit/test_dependencies.py fails on drift.
+dependencies = [
+    "reflex>=0.10,<0.11",
+    "reflex-silverpoint-react>=0.9.1,<0.10",
+    "prismal-sdk>=0.2.0.dev0,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11", "packaging>=24"]
+
+[tool.uv]
+# A deployable Reflex app, not a library (ARCHITECTURE §8): no wheel build.
+package = false
+
+[tool.uv.sources]
+# prismal-sdk is not on PyPI yet: resolve the sibling checkout for local dev.
+# Remove this entry once prismal-sdk 0.2.x is published (unblocks WCB-00-06 CI).
+prismal-sdk = { path = "../prismal-sdk", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["contract: opt-in tests against a live prismal-server"]
+addopts = "-m 'not contract'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".web", ".states"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+exclude = ["^\\.web/", "^tests/"]
+
+[[tool.mypy.overrides]]
+# Ships .pyi stubs but no py.typed marker.
+module = ["reflex_silverpoint_react", "reflex_silverpoint_react.*"]
+follow_untyped_imports = true

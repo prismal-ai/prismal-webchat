@@ -48,9 +48,9 @@ Requires Python 3.13 (dev target), [`uv`](https://docs.astral.sh/uv/), and a
 running `prismal-server` (defaults to `http://localhost:8000`).
 
 ```bash
-uv pip install -e ".[dev]"
-reflex run
-# open http://localhost:3000
+uv sync            # needs ../prismal-sdk until the SDK is on PyPI
+uv run reflex run
+# open http://localhost:3000  (webchat backend listens on :8001)
 ```
 
 Point it at a server and brand it via environment variables:
