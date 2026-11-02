@@ -37,3 +37,11 @@ def test_backend_port_does_not_collide_with_prismal_server_default() -> None:
 
     assert rxconfig.config.backend_port == 8001
     assert rxconfig.config.frontend_port == 3000
+
+
+def test_reflex_badge_is_disabled() -> None:
+    # The prod "Built with Reflex" badge sits bottom-right and covers the
+    # embedded widget's Send button (owner decision, 2026-11-02).
+    import rxconfig
+
+    assert rxconfig.config.show_built_with_reflex is False

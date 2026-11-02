@@ -52,7 +52,7 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 - Prod single-port needs equal ports: `reflex run --env prod --single-port --frontend-port 8001 --backend-port 8001` (rxconfig keeps 3000/8001 for dev).
 - `/chat` answers `307 → /chat/`; `embed.js` points at `/chat` and the redirect carries the CSP too.
 - `'self'` is always in `frame-ancestors`; the allowlist is appended.
-- Prod builds show Reflex's "Built with Reflex" badge bottom-right, overlapping the widget's Send button; `show_built_with_reflex=False` removes it — **owner decision pending**.
+- Prod builds showed Reflex's "Built with Reflex" badge bottom-right, overlapping the widget's Send button; disabled with `show_built_with_reflex=False` (owner decision 2026-11-02, verified in a prod build).
 
 ### Progress
 
