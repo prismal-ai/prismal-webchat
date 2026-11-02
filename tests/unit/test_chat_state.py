@@ -325,3 +325,20 @@ async def test_no_retry_for_budget_or_while_streaming(
     await turn(state, "q2")
     state.streaming = True
     assert not chains_stream_turn(ChatState.retry.fn(state, state.messages[-1].id))
+
+
+def test_retry_ignores_unknown_message_id(state: ChatState) -> None:
+    assert not chains_stream_turn(ChatState.retry.fn(state, "nope"))
+
+
+async def test_protocol_refusal_on_classic_stream_is_an_error_not_a_resend(
+    state: ChatState, fake_client: FakeAsyncPrismalClient
+) -> None:
+    # Only the AG-UI request may fall back; a classic refusal is just an error.
+    fake_client.queue_turn(scripts.protocol_not_enabled())
+
+    await turn(state, "hi")
+
+    assert len(fake_client.sent) == 1
+    assert state.messages[-1].kind == "error"
+    assert client_mod.agui_available() is True

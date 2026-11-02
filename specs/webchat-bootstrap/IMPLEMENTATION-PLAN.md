@@ -63,6 +63,11 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-00-04 | `DONE` | `tests/boundary.py` AST scanner (static, `from x import y`, `importlib`/`__import__` literals; httpx/requests/aiohttp/urllib3/urllib.request/http.client) + `test_boundary.py` |
 | WCB-00-05 + D-02 | `DONE` | `tests/fakes.py` (`FakeAsyncPrismalClient`: raise-in-place, early-close tracking, verbatim `sent`), `tests/scripts.py` (classic + AG-UI via SDK `parse_agui_event` / `error_for_code`), `tests/conftest.py` |
 | WCB-00-06 | `BLOCKED` | Waiting for `prismal-sdk` on PyPI |
+| WCB-04-01 + D-08 (scan) | `DONE` | `tests/unit/test_secret_hygiene.py` (Reflex-serialized state after classic + AG-UI turns with full usage, backend vars, DEBUG logs; mutation-checked) + opt-in `tests/compiled/` (`uv run pytest -m compile`: real `reflex compile` with sentinel env, positive control on the welcome text) |
+| WCB-04-02 + D-09 | `DONE` | `tests/contract/test_live_server.py` (`uv run pytest -m contract`): classic chunks, thread reuse, `/tool` chip, `/error` bubble, AG-UI text + `PrismalUsageEvent` hidden, AG-UI chip by call id, opt-in footer = 15 — 7/7 green vs prismal-server fake-LLM + `PRISMAL_AGUI_EVENTS_ENABLED=true` |
+| WCB-04-04 + D-01 (doc) | `DONE` | `docs/configuration.md`, `docs/embedding.md`, `docs/agui.md`; README/CLAUDE.md updated |
+| WCB-04-05 | `DONE` | ruff + mypy strict clean; coverage baseline **99 %** (450 stmts, 1 defensive line uncovered) |
+| WCB-04-06 | `BLOCKED` | `v0.1.0` tag after WCB-00-06/04-03 |
 | WCB-01-01 | `DONE` | `client.py`: lazy process-wide client, `client_lifespan` registered on the app (closes at shutdown), sticky AG-UI fallback flag |
 | WCB-01-02 | `DONE` | `state/models.py`: `ChatMessage`, `ToolActivity`, `ChatView` protocol |
 | WCB-01-03…06 | `DONE` | `state/chat.py`: `send` (regular) → `stream_turn` (**background**, so Stop is processed mid-turn); one `async with self` per event; Stop cancels the in-flight task → `aclosing` unwinds the SDK stream; tab teardown re-raises `CancelledError`; content verbatim via backend-only `_pending_content` |

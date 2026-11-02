@@ -120,3 +120,8 @@ def test_embed_origins_accepts_origins(origin: str) -> None:
 def test_embed_origins_rejects_non_origins(origin: str) -> None:
     with pytest.raises(ValidationError):
         WebchatSettings(embed_origins=[origin])
+
+
+def test_embed_origin_with_malformed_port_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        WebchatSettings(embed_origins=["https://example.com:99999"])

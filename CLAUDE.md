@@ -77,6 +77,7 @@ uv sync                             # .venv from uv.lock (dev group included)
 uv run reflex run                   # dev server: frontend :3000, backend :8001
 uv run pytest                       # unit (offline, FakeAsyncPrismalClient)
 uv run pytest -m contract           # opt-in: against a running prismal-server
+uv run pytest -m compile            # opt-in: compile frontend, scan for secrets
 uv run ruff check . && uv run ruff format --check .
 uv run mypy prismal_webchat
 ```

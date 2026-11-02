@@ -13,10 +13,10 @@ to the webchat's own backend over Reflex's WebSocket, and that backend talks to
 bearer token server-side, needs no CORS opening on the host, and puts zero
 wire-contract code in this repo.
 
-> **Status: bootstrap (SDD seed).** The design is complete in
-> [`specs/webchat-bootstrap/`](./specs/webchat-bootstrap/)
-> (`PLAN.md` · `ARCHITECTURE.md` · `SPEC.md` · `TASKS.md`); implementation
-> phases WCB-00…04 are tracked in `TASKS.md`.
+> **Status: v0.1 in progress.** Chat core, silverpoint UI, AG-UI mode and
+> embedding are implemented and tested; Docker image and CI wait for
+> `prismal-sdk` on PyPI. Design: [`specs/webchat-bootstrap/`](./specs/webchat-bootstrap/);
+> progress: [`IMPLEMENTATION-PLAN.md`](./specs/webchat-bootstrap/IMPLEMENTATION-PLAN.md).
 
 ## Ecosystem position
 
@@ -32,7 +32,7 @@ browser ── Reflex WS ──▶ prismal-webchat (this repo, BFF)
 | [`prismal`](https://github.com/prismal-ai/prismal) | Engine (LangGraph supervisor, 29 routes, RAG, security) | v3.10.1 — 21/21 specs |
 | [`prismal-server`](https://github.com/prismal-ai/prismal-server) | FastAPI host (REST + SSE + A2A) | v0.1 complete |
 | [`prismal-sdk`](https://github.com/prismal-ai/prismal-sdk) | Typed Python client (sync + async) | bootstrap complete |
-| `prismal-webchat` | Embeddable chat UI (this repo) | **SDD seed** |
+| `prismal-webchat` | Embeddable chat UI (this repo) | **v0.1 in progress** |
 
 ## What v0.1 delivers
 
@@ -78,7 +78,7 @@ export PRISMAL_WEBCHAT_EMBED_ORIGINS='["https://www.example.com"]'
 ```
 
 The allowlist is enforced with a `frame-ancestors` CSP header (browser-level,
-not spoofable in-page). Details: `docs/embedding.md` (Phase 4).
+not spoofable in-page). Details: [`docs/embedding.md`](./docs/embedding.md).
 
 ## Configuration
 
@@ -89,15 +89,20 @@ not spoofable in-page). Details: `docs/embedding.md` (Phase 4).
 | `PRISMAL_WEBCHAT_ORG_ID` | — | Tenant for all webchat traffic (`X-Org-Id`) |
 | `PRISMAL_WEBCHAT_TITLE` | `prismal` | Widget/page title |
 | `PRISMAL_WEBCHAT_WELCOME_MESSAGE` | `Hi! How can I help?` | First assistant bubble |
-| `PRISMAL_WEBCHAT_ACCENT_COLOR` | `#6C5CE7` | Accent color |
+| `PRISMAL_WEBCHAT_ACCENT_COLOR` | `#5D4BE5` | Accent ink; `#RRGGBB`, must pass contrast |
 | `PRISMAL_WEBCHAT_THEME` | `light` | `light` \| `dark` \| `auto` |
 | `PRISMAL_WEBCHAT_EMBED_ORIGINS` | `[]` | Allowed embedding origins (empty ⇒ same-origin only) |
+| `PRISMAL_WEBCHAT_AGUI_ENABLED` | `false` | AG-UI event stream ([`docs/agui.md`](./docs/agui.md)) |
+| `PRISMAL_WEBCHAT_SHOW_USAGE` | `false` | Show "N tokens" under replies (never cost/model) |
+
+Full reference: [`docs/configuration.md`](./docs/configuration.md).
 
 ## Development
 
 ```bash
 uv run pytest                       # unit suite — offline, fake SDK client
-uv run pytest -m contract           # opt-in — against a running prismal-server
+uv run pytest -m contract           # opt-in — against a running prismal-server (fake-LLM mode)
+uv run pytest -m compile            # opt-in — compiles the frontend, scans it for secrets
 uv run ruff check . && uv run mypy prismal_webchat
 ```
 
