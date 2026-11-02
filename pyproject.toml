@@ -12,6 +12,7 @@ dependencies = [
     "reflex>=0.10,<0.11",
     "reflex-silverpoint-react>=0.9.1,<0.10",
     "prismal-sdk>=0.2.0.dev0,<1",
+    "pydantic-settings>=2.5,<3",
 ]
 
 [dependency-groups]

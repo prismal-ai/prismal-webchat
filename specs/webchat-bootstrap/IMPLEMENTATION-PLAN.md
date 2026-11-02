@@ -40,12 +40,20 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
    dev; **WCB-00-06 (CI) and WCB-04-03 (Docker) are `BLOCKED`** on that release.
    Unblocking = delete the `[tool.uv.sources]` entry and `uv lock`.
 
+### Findings for WCB-D-01
+
+- DELTA-2026-10 names the sub-agent key `subagent_id`; the SDK (`prismal_sdk.agui.SubagentStarted/Finished`) exposes **`subagent_run_id`**. The widget follows the SDK; `docs/agui.md` must record the real field.
+- `budget_exceeded` fixture pinned in `tests/scripts.py::budget_exceeded` (402, `scope`/`limit`/`consumed` details, built via `error_for_code`).
+
 ### Progress
 
 | Task | Status | Notes |
 |---|---|---|
 | WCB-S-01 | `WIP` | `uv run reflex run` compiles with `@silverpoint/react@0.9.1`; `sp_surface` renders inside `silverpoint_provider`. Handlers/`rx.markdown`/lifespan confirmed as part of WCB-01-*. |
 | WCB-00-02 | `DONE` | `pyproject.toml` (pins + `package = false`), `uv.lock`, `reflex.lock/` (npm), `rxconfig.py` (`app_module_import`, frontend `:3000`, backend `:8001`), `prismal_webchat/webchat.py`; tests `test_dependencies.py`, `test_app_skeleton.py` |
+| WCB-00-03 + D-03 | `DONE` | `prismal_webchat/settings.py` (frozen, `SecretStr` token, URL/theme/origin validation, `agui_enabled`/`show_usage`); `pydantic-settings` now a direct dep |
+| WCB-00-04 | `DONE` | `tests/boundary.py` AST scanner (static, `from x import y`, `importlib`/`__import__` literals; httpx/requests/aiohttp/urllib3/urllib.request/http.client) + `test_boundary.py` |
+| WCB-00-05 + D-02 | `DONE` | `tests/fakes.py` (`FakeAsyncPrismalClient`: raise-in-place, early-close tracking, verbatim `sent`), `tests/scripts.py` (classic + AG-UI via SDK `parse_agui_event` / `error_for_code`), `tests/conftest.py` |
 | WCB-00-06 | `BLOCKED` | Waiting for `prismal-sdk` on PyPI |
 | WCB-04-03 | `BLOCKED` | Same |
 
