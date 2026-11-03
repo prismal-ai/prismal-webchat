@@ -2,8 +2,9 @@
 
 All notable changes to `prismal-webchat`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
-[Semantic Versioning](https://semver.org/). Releases ship as a container image
-(`ghcr.io/prismal-ai/prismal-webchat`), not to PyPI.
+[Semantic Versioning](https://semver.org/). Releases ship to PyPI
+(`pip install prismal-webchat`) and as a container image
+(`ghcr.io/prismal-ai/prismal-webchat`).
 
 ## [Unreleased]
 
@@ -47,11 +48,17 @@ DELTA-2026-11-pypi).
   --single-port` process on port 8001, non-root, frontend built at startup
   from the runtime branding with no network access. `docs/deploy.md` covers
   the reverse proxy (WebSocket upgrade) and the single-process limit.
+- **PyPI distribution** `prismal-webchat` with a `prismal-webchat` console
+  script: `prismal-webchat init [DIR]` writes the Reflex working directory
+  (`rxconfig.py`, `assets/embed.js`, the pinned `reflex.lock/`) from the
+  installed package, and `prismal-webchat run` does that and starts the app
+  (prod single-port by default, `--env dev`, `--port`/`$PORT`, `--host`).
 - **CI** (`ci.yml`): ruff, mypy strict and the offline unit suite on every
   push; on pull requests also the contract suite against `prismal-server`
-  0.3 from PyPI in fake-LLM mode, the compile secret-scan and a Docker smoke
-  test. **Release** (`release.yml`): from `main`, pushes the GHCR image and
-  creates the `v<version>` tag and GitHub release.
+  0.3 from PyPI in fake-LLM mode, the compile secret-scan, a wheel/sdist
+  smoke test and a Docker smoke test. **Release** (`release.yml`): from
+  `main`, uploads to PyPI with trusted publishing, pushes the GHCR image and
+  creates the `v<version>` tag and GitHub release with the artifacts.
 
 ### Dependencies
 

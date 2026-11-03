@@ -16,6 +16,21 @@ serves the page from Vite on `:3000` without it (see
 The browser never talks to `prismal-server`. The webchat backend does,
 through `prismal-sdk`, with the service token from its own environment.
 
+## From PyPI
+
+```bash
+pip install prismal-webchat
+prismal-webchat run --app-dir /srv/webchat --port 8001
+```
+
+`run` writes `rxconfig.py`, `assets/embed.js` and the pinned `reflex.lock/`
+into the app directory (refreshing them on every start, so they always
+match the installed version), then execs the command above. The first start
+needs network access for bun and the frontend packages; later starts reuse
+them from the app directory. Settings come from the environment exactly as
+in the container. Run it under a process supervisor (systemd, supervisord)
+with one instance.
+
 ## Container image
 
 ```bash

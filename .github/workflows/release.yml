@@ -1,19 +1,31 @@
-# WCB-04-06 — release prismal-webchat from `main`.
+# WCB-04-06 / SPEC-WCB-REL-001 — release prismal-webchat from `main`.
 #
-# The webchat is a deployable app, not a library (ARCHITECTURE §8): a release
-# is a container image on GHCR plus a `v<version>` tag and GitHub release.
-# Nothing is uploaded to PyPI.
+# A release is: the wheel + sdist on PyPI (`prismal-webchat`, with the
+# `prismal-webchat` console script), the container image on GHCR, and a
+# `v<version>` tag + GitHub release with the artifacts attached.
 #
 # Every push to `main` (in practice: merging a release PR) runs this workflow.
 # It ships the version in pyproject.toml when that version is a final release
-# and has no tag yet; anything else (a `.devN` version, an existing tag) ends
-# green without publishing, so re-runs are harmless.
+# and is not on PyPI yet; anything else (a `.devN` version, a version already
+# uploaded) ends green without publishing, so re-runs are harmless.
 #
 # Privileges are split per job:
-#   plan            contents: read                 — decide whether this version ships
-#   verify          contents: read                 — gates + image build + smoke test
+#   plan            contents: read                  — decide whether this version ships
+#   build           contents: read                  — gates, build, smoke tests → artifacts
+#   pypi-publish    id-token: write                 — no checkout, no deps: upload artifacts
 #   image           contents: read, packages: write — build and push ghcr.io/<repo>
-#   github-release  contents: write                — tag + GitHub release after the push
+#   github-release  contents: write                 — tag + GitHub release
+# Every job runs only on refs/heads/main, and the `pypi` environment only
+# accepts deployments from `main`.
+#
+# PyPI uses trusted publishing (OIDC): no token is stored in the repository.
+# PyPI must list this publisher once — project `prismal-webchat`, owner
+# `prismal-ai`, repository `prismal-webchat`, workflow `release.yml`,
+# environment `pypi` (a "pending publisher" until the project exists).
+#
+# GHCR uses the job's GITHUB_TOKEN. The image carries
+# `org.opencontainers.image.source`, which links the package to this
+# repository on first push, so later pushes are authorized by the repository.
 name: Release
 
 on:
@@ -55,21 +67,33 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${version}" >/dev/null 2>&1; then
-            echo "::notice::v${version} is already tagged; nothing to publish"
+          status="$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://pypi.org/pypi/prismal-webchat/${version}/json")"
+          if [ "$status" = "200" ]; then
+            echo "::notice::prismal-webchat ${version} is already on PyPI; nothing to publish"
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
+          elif [ "$status" != "404" ]; then
+            echo "::error::PyPI answered ${status} for prismal-webchat ${version}"
+            exit 1
+          fi
+          # PyPI uploads are immutable: a tag pointing elsewhere would describe
+          # a different artifact, and a version without a changelog entry
+          # ships without release notes.
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${version}" >/dev/null 2>&1; then
+            echo "::error::tag v${version} already exists but ${version} is not on PyPI"
+            exit 1
           fi
           grep -q "^## \[${version}\]" CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no [${version}] entry"; exit 1; }
           echo "publish=true" >> "$GITHUB_OUTPUT"
 
-  verify:
+  build:
     needs: plan
     if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ needs.plan.outputs.version }}
+      EXPECTED_VERSION: ${{ needs.plan.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -88,29 +112,72 @@ jobs:
         run: uv run pytest --cov=prismal_webchat --cov-report=term-missing
       - name: Pytest (compile)
         run: uv run pytest -m compile -v
+      - name: Build
+        run: uv build
+      # Catches what the suite cannot: files missing from the artifacts.
+      - name: Smoke test (wheel, with reflex compile)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.whl "$GITHUB_WORKSPACE/scripts/smoke_test.py" --compile
+      - name: Smoke test (source distribution)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.tar.gz "$GITHUB_WORKSPACE/scripts/smoke_test.py"
       - name: Build image
-        run: docker build -t "prismal-webchat:${VERSION}" .
+        run: docker build -t "prismal-webchat:${EXPECTED_VERSION}" .
       - name: Smoke test image
-        run: scripts/docker_smoke.sh "prismal-webchat:${VERSION}"
+        run: scripts/docker_smoke.sh "prismal-webchat:${EXPECTED_VERSION}"
       - name: Release notes (this version's CHANGELOG section)
         run: |
           set -euo pipefail
-          awk -v v="$VERSION" '
+          awk -v v="$EXPECTED_VERSION" '
             $0 ~ "^## \\[" v "\\]" { on = 1; next }
             on && /^## \[/ { exit }
             on && /^\[[^]]+\]: / { next }
             on { print }
           ' CHANGELOG.md > release-notes.md
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          printf '\nImage: `%s:%s`\n' "$image" "$VERSION" >> release-notes.md
+          {
+            echo ""
+            echo "PyPI: https://pypi.org/project/prismal-webchat/${EXPECTED_VERSION}/"
+            printf 'Image: `%s:%s`\n' "$image" "$EXPECTED_VERSION"
+          } >> release-notes.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-notes
           path: release-notes.md
           if-no-files-found: error
 
+  pypi-publish:
+    needs: [plan, build]
+    if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/prismal-webchat/${{ needs.plan.outputs.version }}/
+    permissions:
+      id-token: write # OIDC token for PyPI trusted publishing — nothing else
+    steps:
+      # No checkout and no dependency install: only the built artifacts and
+      # uv itself ever run next to the OIDC token.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist
+          path: dist/
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Publish to PyPI (trusted publishing)
+        run: uv publish --trusted-publishing always dist/*
+
   image:
-    needs: [plan, verify]
+    needs: [plan, pypi-publish]
     if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -132,6 +199,8 @@ jobs:
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           docker build \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.description=Embeddable prismal web chat (Reflex BFF)" \
+            --label "org.opencontainers.image.licenses=MIT" \
             --label "org.opencontainers.image.version=${VERSION}" \
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             -t "${image}:${VERSION}" -t "${image}:latest" .
@@ -139,7 +208,7 @@ jobs:
           docker push "${image}:latest"
 
   github-release:
-    needs: [plan, image]
+    needs: [plan, pypi-publish, image]
     if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -149,12 +218,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
           name: release-notes
       - name: Tag and create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${VERSION}" \
+          gh release create "v${VERSION}" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "prismal-webchat ${VERSION}" \

@@ -53,6 +53,31 @@ jobs:
       - name: Pytest (unit, offline)
         run: uv run pytest --cov=prismal_webchat --cov-report=term-missing
 
+  package:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: uv build
+      # The installed artifact, from an empty directory (SPEC-WCB-REL-002).
+      - name: Smoke test (wheel, with reflex compile)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.whl "$GITHUB_WORKSPACE/scripts/smoke_test.py" --compile
+      - name: Smoke test (source distribution)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.tar.gz "$GITHUB_WORKSPACE/scripts/smoke_test.py"
+
   contract:
     if: >-
       github.event_name == 'pull_request' ||

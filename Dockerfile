@@ -40,6 +40,8 @@ COPY --chown=app:app pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
 COPY --chown=app:app rxconfig.py README.md LICENSE ./
+# Pinned frontend dependencies (bun.lock): the image installs exactly these.
+COPY --chown=app:app reflex.lock ./reflex.lock
 COPY --chown=app:app assets ./assets
 COPY --chown=app:app prismal_webchat ./prismal_webchat
 

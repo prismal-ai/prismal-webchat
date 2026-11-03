@@ -289,10 +289,12 @@ logs. Revisit if the webchat grows server fleet concerns (WCB-FUTURE-06).
 
 `uv`-based project; `reflex run` for dev, Dockerfile for prod (single
 container serving frontend + backend + WS; reverse-proxy note for WebSocket
-upgrade in `docs/deploy.md`). Not published to PyPI — the webchat is a
-deployable application, not a library. Versioning follows the org's
+upgrade in `docs/deploy.md`). *(Superseded by DELTA-2026-11-pypi: also
+published to PyPI as `prismal-webchat` with a `prismal-webchat init|run`
+console script; GHCR image `ghcr.io/prismal-ai/prismal-webchat`.)* Versioning follows the org's
 `MAJOR.MINOR.PATCH`; `v0.1.0` targets the M5 exit criterion in `PLAN.md`.
-Pins: `reflex>=0.8,<0.9`, `prismal-sdk>=0.1,<1` (both bumped deliberately).
+Pins: `reflex>=0.10,<0.11`, `reflex-silverpoint-react>=0.9.1,<0.10`,
+`prismal-ai-sdk>=0.3,<1` (bumped deliberately; DELTA-2026-11, DELTA-2026-11-pypi).
 
 ---
 

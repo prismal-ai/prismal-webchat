@@ -94,9 +94,12 @@ the suite at it with `PRISMAL_WEBCHAT_CONTRACT_URL`.
 
 Deploy: `Dockerfile` (single-port prod, frontend built at container start),
 `scripts/docker_smoke.sh`, `docs/deploy.md`. CI/release:
-`.github/workflows/{ci,release}.yml` — release ships a GHCR image + tag from
-`main` when `pyproject.toml` has a final, untagged version with a
-`CHANGELOG.md` entry.
+`.github/workflows/{ci,release}.yml` — release uploads to PyPI (trusted
+publishing, env `pypi`), pushes the GHCR image and tags, from `main`, when
+`pyproject.toml` has a final version not yet on PyPI with a `CHANGELOG.md`
+entry. The wheel ships `rxconfig.py`/`assets/embed.js`/`reflex.lock/` under
+`prismal_webchat/_app/` (hatch `force-include`) for the `prismal-webchat`
+CLI (`prismal_webchat/cli.py`); keep those in sync if you add app files.
 
 ## Boundary examples
 

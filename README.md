@@ -81,6 +81,19 @@ export PRISMAL_WEBCHAT_EMBED_ORIGINS='["https://www.example.com"]'
 The allowlist is enforced with a `frame-ancestors` CSP header (browser-level,
 not spoofable in-page). Details: [`docs/embedding.md`](./docs/embedding.md).
 
+## Install from PyPI
+
+```bash
+pip install prismal-webchat            # or: uv tool install prismal-webchat
+export PRISMAL_WEBCHAT_SERVER_URL=… PRISMAL_WEBCHAT_TOKEN=…
+prismal-webchat run --app-dir ./webchat   # prod, one port: http://localhost:8001
+```
+
+`prismal-webchat init DIR` only writes the Reflex working directory
+(`rxconfig.py`, `assets/`, `reflex.lock/`); `prismal-webchat run --env dev`
+starts the dev server instead. The first run downloads bun and the frontend
+packages into the app directory.
+
 ## Deploy
 
 ```bash
