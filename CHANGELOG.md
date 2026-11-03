@@ -8,6 +8,12 @@ All notable changes to `prismal-webchat`. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Release: the GHCR push uses buildx + `docker/login-action` (like
+  prismal-server) and the workflow resumes a version that is on PyPI but not
+  tagged yet (image + tag + GitHub release, attaching PyPI's files).
+
 ## [0.1.0] — 2026-11-03
 
 First release: the embeddable web chat for the prismal ecosystem, a Reflex

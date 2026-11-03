@@ -6,8 +6,11 @@
 #
 # Every push to `main` (in practice: merging a release PR) runs this workflow.
 # It ships the version in pyproject.toml when that version is a final release
-# and is not on PyPI yet; anything else (a `.devN` version, a version already
-# uploaded) ends green without publishing, so re-runs are harmless.
+# and is not fully released yet. The steps are resumable: a version already
+# on PyPI but without a `v<version>` tag (e.g. the image push failed) skips the
+# upload and finishes the image + tag + GitHub release, attaching the exact
+# files PyPI holds. A `.devN` version, or one on PyPI and tagged, ends green
+# without publishing, so re-runs are harmless.
 #
 # Privileges are split per job:
 #   plan            contents: read                  — decide whether this version ships
@@ -47,6 +50,7 @@ jobs:
     outputs:
       version: ${{ steps.decide.outputs.version }}
       publish: ${{ steps.decide.outputs.publish }}
+      pypi: ${{ steps.decide.outputs.pypi }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -69,23 +73,34 @@ jobs:
           fi
           status="$(curl -s -o /dev/null -w '%{http_code}' \
             "https://pypi.org/pypi/prismal-webchat/${version}/json")"
-          if [ "$status" = "200" ]; then
-            echo "::notice::prismal-webchat ${version} is already on PyPI; nothing to publish"
+          case "$status" in
+            200) on_pypi=true ;;
+            404) on_pypi=false ;;
+            *) echo "::error::PyPI answered ${status} for prismal-webchat ${version}"; exit 1 ;;
+          esac
+          tagged=false
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${version}" >/dev/null 2>&1; then
+            tagged=true
+          fi
+          if $on_pypi && $tagged; then
+            echo "::notice::prismal-webchat ${version} is released; nothing to publish"
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
-          elif [ "$status" != "404" ]; then
-            echo "::error::PyPI answered ${status} for prismal-webchat ${version}"
-            exit 1
           fi
           # PyPI uploads are immutable: a tag pointing elsewhere would describe
-          # a different artifact, and a version without a changelog entry
-          # ships without release notes.
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${version}" >/dev/null 2>&1; then
+          # a different artifact.
+          if $tagged; then
             echo "::error::tag v${version} already exists but ${version} is not on PyPI"
             exit 1
           fi
           grep -q "^## \[${version}\]" CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no [${version}] entry"; exit 1; }
+          if $on_pypi; then
+            echo "::notice::${version} is on PyPI but untagged; resuming image + release"
+            echo "pypi=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pypi=true" >> "$GITHUB_OUTPUT"
+          fi
           echo "publish=true" >> "$GITHUB_OUTPUT"
 
   build:
@@ -125,6 +140,16 @@ jobs:
           cd "$RUNNER_TEMP"
           uv run --isolated --no-project --python 3.13 \
             --with "$GITHUB_WORKSPACE"/dist/*.tar.gz "$GITHUB_WORKSPACE/scripts/smoke_test.py"
+      # Resuming after the upload: release the bytes PyPI holds, not a rebuild.
+      - name: Use the files already on PyPI
+        if: needs.plan.outputs.pypi != 'true'
+        run: |
+          set -euo pipefail
+          rm -rf dist && mkdir dist
+          curl -fsS "https://pypi.org/pypi/prismal-webchat/${EXPECTED_VERSION}/json" \
+            | python3 -c 'import json,sys; [print(u["url"]) for u in json.load(sys.stdin)["urls"]]' \
+            | while read -r url; do curl -fsSL -o "dist/${url##*/}" "$url"; done
+          ls -l dist
       - name: Build image
         run: docker build -t "prismal-webchat:${EXPECTED_VERSION}" .
       - name: Smoke test image
@@ -157,7 +182,7 @@ jobs:
 
   pypi-publish:
     needs: [plan, build]
-    if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
+    if: github.ref == 'refs/heads/main' && needs.plan.outputs.pypi == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -177,8 +202,11 @@ jobs:
         run: uv publish --trusted-publishing always dist/*
 
   image:
-    needs: [plan, pypi-publish]
-    if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
+    needs: [plan, build, pypi-publish]
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      needs.plan.outputs.publish == 'true' && needs.build.result == 'success' &&
+      (needs.pypi-publish.result == 'success' || needs.pypi-publish.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -189,27 +217,39 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Build, tag and push
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
-          docker build \
-            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            --label "org.opencontainers.image.description=Embeddable prismal web chat (Reflex BFF)" \
-            --label "org.opencontainers.image.licenses=MIT" \
-            --label "org.opencontainers.image.version=${VERSION}" \
-            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            -t "${image}:${VERSION}" -t "${image}:latest" .
-          docker push "${image}:${VERSION}"
-          docker push "${image}:latest"
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      # Same toolchain as prismal-server's release, which pushes to this org.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # A single-platform image manifest: no attestation index.
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ env.VERSION }}
+            ${{ steps.name.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Embeddable prismal web chat (Reflex BFF)
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
   github-release:
-    needs: [plan, pypi-publish, image]
-    if: github.ref == 'refs/heads/main' && needs.plan.outputs.publish == 'true'
+    needs: [plan, image]
+    if: always() && github.ref == 'refs/heads/main' && needs.image.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the `v<version>` tag and the GitHub release
