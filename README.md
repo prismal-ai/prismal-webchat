@@ -9,13 +9,13 @@ Built with [Reflex](https://reflex.dev) (full-stack Python): the browser talks
 to the webchat's own backend over Reflex's WebSocket, and that backend talks to
 `prismal-server` exclusively through
 [`prismal-sdk`](https://github.com/prismal-ai/prismal-sdk)
-(`AsyncPrismalClient`). This backend-for-frontend design keeps the service
+(`AsyncPrismalClient`; on PyPI as `prismal-ai-sdk`). This backend-for-frontend design keeps the service
 bearer token server-side, needs no CORS opening on the host, and puts zero
 wire-contract code in this repo.
 
-> **Status: v0.1 in progress.** Chat core, silverpoint UI, AG-UI mode and
-> embedding are implemented and tested; Docker image and CI wait for
-> `prismal-sdk` on PyPI. Design: [`specs/webchat-bootstrap/`](./specs/webchat-bootstrap/);
+> **Status: v0.1.0.** Chat core, silverpoint UI, AG-UI mode, embedding,
+> container image and CI are implemented and tested against `prismal-server`
+> 0.3 ([`CHANGELOG.md`](./CHANGELOG.md)). Design: [`specs/webchat-bootstrap/`](./specs/webchat-bootstrap/);
 > progress: [`IMPLEMENTATION-PLAN.md`](./specs/webchat-bootstrap/IMPLEMENTATION-PLAN.md).
 
 ## Ecosystem position
@@ -29,10 +29,11 @@ browser ── Reflex WS ──▶ prismal-webchat (this repo, BFF)
 
 | Repo | Role | Status |
 |---|---|---|
-| [`prismal`](https://github.com/prismal-ai/prismal) | Engine (LangGraph supervisor, 29 routes, RAG, security) | v3.10.1 — 21/21 specs |
-| [`prismal-server`](https://github.com/prismal-ai/prismal-server) | FastAPI host (REST + SSE + A2A) | v0.1 complete |
-| [`prismal-sdk`](https://github.com/prismal-ai/prismal-sdk) | Typed Python client (sync + async) | bootstrap complete |
-| `prismal-webchat` | Embeddable chat UI (this repo) | **v0.1 in progress** |
+| [`prismal`](https://github.com/prismal-ai/prismal) | Engine (LangGraph supervisor, RAG, security) — PyPI `prismal-ai` | v3.22.1 |
+| [`prismal-server`](https://github.com/prismal-ai/prismal-server) | FastAPI host (REST + SSE + WS + AG-UI + A2A) | v0.3.0 |
+| [`prismal-sdk`](https://github.com/prismal-ai/prismal-sdk) | Typed Python client (sync + async) — PyPI `prismal-ai-sdk` | v0.3.0 |
+| [`prismal-tui`](https://github.com/prismal-ai/prismal-tui) | Terminal client (Textual) | v0.2.0 |
+| `prismal-webchat` | Embeddable chat UI (this repo) | **v0.1.0** |
 
 ## What v0.1 delivers
 
@@ -48,7 +49,7 @@ Requires Python 3.13 (dev target), [`uv`](https://docs.astral.sh/uv/), and a
 running `prismal-server` (defaults to `http://localhost:8000`).
 
 ```bash
-uv sync            # needs ../prismal-sdk until the SDK is on PyPI
+uv sync            # resolves prismal-ai-sdk from PyPI
 uv run reflex run
 # open http://localhost:3000  (webchat backend listens on :8001)
 ```
@@ -79,6 +80,18 @@ export PRISMAL_WEBCHAT_EMBED_ORIGINS='["https://www.example.com"]'
 
 The allowlist is enforced with a `frame-ancestors` CSP header (browser-level,
 not spoofable in-page). Details: [`docs/embedding.md`](./docs/embedding.md).
+
+## Deploy
+
+```bash
+docker build -t prismal-webchat .
+docker run -p 8001:8001 -e PRISMAL_WEBCHAT_SERVER_URL=… -e PRISMAL_WEBCHAT_TOKEN=… prismal-webchat
+```
+
+One process, one port (`reflex run --env prod --single-port`); put a
+WebSocket-capable reverse proxy with TLS in front. Released images:
+`ghcr.io/prismal-ai/prismal-webchat:<version>`. Details:
+[`docs/deploy.md`](./docs/deploy.md).
 
 ## Configuration
 

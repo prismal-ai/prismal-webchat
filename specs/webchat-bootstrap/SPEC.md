@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | `DRAFT` |
+| **Status** | `IMPLEMENTED` — `0.1.0` (released from `main` by `release.yml`; see `DELTA-2026-11-pypi.md`) |
 | **Version** | 1.0 |
 | **Date** | 2026-07-19 |
 | **Companion** | [`PLAN.md`](./PLAN.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`TASKS.md`](./TASKS.md) |
@@ -93,7 +93,7 @@ backend-only (never state, ADR-002/§4.4).
 | SPEC-WCB-NFR-002 | `ruff check .` and `mypy` on `prismal_webchat/` MUST be clean in CI. | `MUST` |
 | SPEC-WCB-NFR-003 | Logs MUST NOT contain message content or the token; they MAY contain `thread_id`, event counts, mapped error codes, and a per-turn request id. | `MUST` |
 | SPEC-WCB-NFR-004 | The chat panel SHOULD meet basic a11y: keyboard send (Enter), focus management after send/error, ARIA live region for streaming assistant text. | `SHOULD` |
-| SPEC-WCB-NFR-005 | Version pins: `reflex>=0.8,<0.9`, `prismal-sdk>=0.1,<1`; bumps are deliberate PRs, not drive-by. | `MUST` |
+| SPEC-WCB-NFR-005 | Version pins: `reflex>=0.8,<0.9`, `prismal-sdk>=0.1,<1`; bumps are deliberate PRs, not drive-by. *(Modified: DELTA-2026-11 → `reflex>=0.10,<0.11` + silverpoint; DELTA-2026-11-pypi → `prismal-ai-sdk>=0.3,<1`.)* | `MUST` |
 
 ---
 

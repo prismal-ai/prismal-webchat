@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | `DRAFT` |
+| **Status** | `IMPLEMENTED` — `0.1.0` (released from `main` by `release.yml`; see `DELTA-2026-11-pypi.md`) |
 | **Version** | 1.0 |
 | **Date** | 2026-07-19 |
 | **Companion** | [`PLAN.md`](./PLAN.md) · [`SPEC.md`](./SPEC.md) · [`TASKS.md`](./TASKS.md) |
@@ -259,7 +259,8 @@ WCB-FUTURE-06. **Status:** Accepted.
 - Mapping (visitor text is illustrative, finalized in the UI copy pass):
   `PrismalConnectionError` / `PrismalTimeoutError` → "Can't reach the
   assistant right now — try again."; `BudgetExceededError` → "The assistant
-  is over capacity for now."; `PolicyDeniedError` / `PermissionDeniedError` →
+  is over capacity for now."; `PolicyDeniedError` / `PermissionDeniedError` / `ForbiddenError` (host 0.2+
+  `forbidden`, `forbidden_tenant`; DELTA-2026-11-pypi) →
   "That request can't be processed."; any other `PrismalAPIError` /
   `PrismalSDKError` → generic failure text. Codes, stack traces, and server
   messages go to the webchat's logs only — never rendered to the visitor

@@ -4,9 +4,9 @@
 |---|---|
 | **Author** | Ernesto Crespo |
 | **Status** | `ACTIVE` |
-| **Version** | 1.2 |
-| **Date** | 2026-11-02 |
-| **Inputs** | [`PLAN.md`](./PLAN.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`SPEC.md`](./SPEC.md) · [`TASKS.md`](./TASKS.md) · [`DELTA-2026-10-usage-agui.md`](./DELTA-2026-10-usage-agui.md) · [`DELTA-2026-11-uv-silverpoint.md`](./DELTA-2026-11-uv-silverpoint.md) |
+| **Version** | 1.3 |
+| **Date** | 2026-11-03 |
+| **Inputs** | [`PLAN.md`](./PLAN.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`SPEC.md`](./SPEC.md) · [`TASKS.md`](./TASKS.md) · [`DELTA-2026-10-usage-agui.md`](./DELTA-2026-10-usage-agui.md) · [`DELTA-2026-11-uv-silverpoint.md`](./DELTA-2026-11-uv-silverpoint.md) · [`DELTA-2026-11-pypi.md`](./DELTA-2026-11-pypi.md) |
 | **Target** | `v0.1.0` (bootstrap + the 2026-10 delta folded in, as that delta states) |
 
 This document consolidates the SDD set into **one executable sequence**: the
@@ -35,7 +35,7 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 ### Decisions (2026-11-02)
 
 1. **DELTA-2026-11 accepted** — `reflex>=0.10,<0.11`, silverpoint as the UI kit.
-2. **`prismal-sdk` from PyPI** — wait for the SDK to be published. Until then
+2. **`prismal-sdk` from PyPI** — *(resolved 2026-11-03, DELTA-2026-11-pypi: published as `prismal-ai-sdk` 0.3.0; the uv source is gone and WCB-00-06/04-03 are done.)* Wait for the SDK to be published. Until then
    `[tool.uv.sources]` resolves the sibling checkout `../prismal-sdk` for local
    dev; **WCB-00-06 (CI) and WCB-04-03 (Docker) are `BLOCKED`** on that release.
    Unblocking = delete the `[tool.uv.sources]` entry and `uv lock`.
@@ -62,12 +62,12 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-00-03 + D-03 | `DONE` | `prismal_webchat/settings.py` (frozen, `SecretStr` token, URL/theme/origin validation, `agui_enabled`/`show_usage`); `pydantic-settings` now a direct dep |
 | WCB-00-04 | `DONE` | `tests/boundary.py` AST scanner (static, `from x import y`, `importlib`/`__import__` literals; httpx/requests/aiohttp/urllib3/urllib.request/http.client) + `test_boundary.py` |
 | WCB-00-05 + D-02 | `DONE` | `tests/fakes.py` (`FakeAsyncPrismalClient`: raise-in-place, early-close tracking, verbatim `sent`), `tests/scripts.py` (classic + AG-UI via SDK `parse_agui_event` / `error_for_code`), `tests/conftest.py` |
-| WCB-00-06 | `BLOCKED` | Waiting for `prismal-sdk` on PyPI |
+| WCB-00-06 | `DONE` | `.github/workflows/ci.yml`: checks (ruff, mypy, unit + coverage) on push/PR; on PR also contract (prismal-server 0.3 from PyPI, own venv, fake-LLM, fails if host not up), compile, Docker build + smoke (DELTA-2026-11-pypi) |
 | WCB-04-01 + D-08 (scan) | `DONE` | `tests/unit/test_secret_hygiene.py` (Reflex-serialized state after classic + AG-UI turns with full usage, backend vars, DEBUG logs; mutation-checked) + opt-in `tests/compiled/` (`uv run pytest -m compile`: real `reflex compile` with sentinel env, positive control on the welcome text) |
 | WCB-04-02 + D-09 | `DONE` | `tests/contract/test_live_server.py` (`uv run pytest -m contract`): classic chunks, thread reuse, `/tool` chip, `/error` bubble, AG-UI text + `PrismalUsageEvent` hidden, AG-UI chip by call id, opt-in footer = 15 — 7/7 green vs prismal-server fake-LLM + `PRISMAL_AGUI_EVENTS_ENABLED=true` |
 | WCB-04-04 + D-01 (doc) | `DONE` | `docs/configuration.md`, `docs/embedding.md`, `docs/agui.md`; README/CLAUDE.md updated |
 | WCB-04-05 | `DONE` | ruff + mypy strict clean; coverage baseline **99 %** (450 stmts, 1 defensive line uncovered) |
-| WCB-04-06 | `BLOCKED` | `v0.1.0` tag after WCB-00-06/04-03 |
+| WCB-04-06 | `DONE` (tag on merge) | Version `0.1.0`, `CHANGELOG.md`; `.github/workflows/release.yml` on `main`: gates → GHCR image `:0.1.0`/`:latest` → `v0.1.0` tag + GitHub release. The tag is created by the workflow when PR #1 merges |
 | WCB-01-01 | `DONE` | `client.py`: lazy process-wide client, `client_lifespan` registered on the app (closes at shutdown), sticky AG-UI fallback flag |
 | WCB-01-02 | `DONE` | `state/models.py`: `ChatMessage`, `ToolActivity`, `ChatView` protocol |
 | WCB-01-03…06 | `DONE` | `state/chat.py`: `send` (regular) → `stream_turn` (**background**, so Stop is processed mid-turn); one `async with self` per event; Stop cancels the in-flight task → `aclosing` unwinds the SDK stream; tab teardown re-raises `CancelledError`; content verbatim via backend-only `_pending_content` |
@@ -76,7 +76,7 @@ Every task is **TDD** (failing test → minimal code → green) and must pass th
 | WCB-02-01…06, S-02, S-03, D-06, D-07, D-08 (UI) | `DONE` | `components/theme.py` (light silverpoint+accent / dark cyanotype / auto via `color_mode_cond`, fail-fast contrast), `components/chat_panel.py` (bubbles seeded by id, skeleton, chips, sub-agent line, `sp_alert`+Retry, opt-in token footer, `role=log` + `aria-live`), `components/input_bar.py` (`sp_input` form, Send/Stop, focus after send), `ChatState.retry` (one per failure, never automatic) |
 | WCB-03-01…05 | `DONE` | `/chat` bare route (same `ChatState`, in-chat Close → `postMessage`); `embedding.py` ASGI middleware via `api_transformer` adds `frame-ancestors 'self' <origins>` to **every** response (kept alongside any existing CSP); `assets/embed.js` derives its origin from `document.currentScript` (no config, no URL/secret), lazy iframe, `aria-expanded`, Escape, `window.PrismalChat`, `event.origin` check; `prismal_webchat/embed/demo.html` + checklist. Verified in headless Chrome (prod single-port): allowed origin opens and chats, in-chat Close works, forged same-page message ignored, other origin refused by CSP |
 | WCB-S-01 | `DONE` | Verified in headless Chrome against `prismal-server` fake-LLM mode: live token streaming, input clears + keeps focus, `/error` → friendly bubble + Retry, raw HTML inert, links `noopener`, no server URL in page, dark theme renders |
-| WCB-04-03 | `BLOCKED` | Same |
+| WCB-04-03 | `DONE` | `Dockerfile` (single-port prod, non-root, frontend built at startup from runtime env, bun/node_modules warmed at build), `.dockerignore`, `scripts/docker_smoke.sh` (page + CSP + embed.js, token absent), `docs/deploy.md` (reverse-proxy WS, single process) |
 
 ---
 
@@ -90,16 +90,14 @@ requires-python = ">=3.11"
 dependencies = [
   "reflex>=0.10,<0.11",                  # DELTA-2026-11 (was >=0.8,<0.9)
   "reflex-silverpoint-react>=0.9.1,<0.10",
-  "prismal-sdk>=0.2.0.dev0,<1",          # DELTA-2026-10 floor; dev pre-release until 0.2.0 ships
+  "prismal-ai-sdk>=0.3,<1",              # DELTA-2026-11-pypi (PyPI name of prismal-sdk)
   "pydantic-settings>=2.5",
 ]
 
 [dependency-groups]
 dev = ["pytest", "pytest-asyncio", "ruff", "mypy"]
 
-[tool.uv.sources]
-# Until prismal-sdk is on PyPI: sibling checkout for local dev (remove after release).
-prismal-sdk = { path = "../prismal-sdk", editable = true }
+# [tool.uv.sources] removed in DELTA-2026-11-pypi: the SDK resolves from PyPI.
 ```
 
 Standard commands (replace the `uv pip install -e ".[dev]"` lines in

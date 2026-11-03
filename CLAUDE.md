@@ -63,8 +63,10 @@ mapping, or webchat-side conversation persistence is a bug.
       compile); anything touching a live server goes in the opt-in
       `tests/contract/` suite (`SPEC-WCB-NFR-001`).
 - [ ] Dep pins stay `reflex>=0.10,<0.11`, `reflex-silverpoint-react>=0.9.1,<0.10`
-      and `prismal-sdk>=0.2.0.dev0,<1`; bumps are deliberate PRs
-      (`SPEC-WCB-NFR-005`, DELTA-2026-10/11; `tests/unit/test_dependencies.py`).
+      and `prismal-ai-sdk>=0.3,<1` (PyPI name of `prismal-sdk`; import
+      `prismal_sdk`); bumps are deliberate PRs (`SPEC-WCB-NFR-005`,
+      DELTA-2026-10/11, DELTA-2026-11-pypi; `tests/unit/test_dependencies.py`).
+      No `[tool.uv.sources]` path entry for the SDK.
 - [ ] `ruff check .` and `mypy prismal_webchat` are clean.
 - [ ] New capability traces to a `SPEC-WCB-*` requirement — if the wire
       contract must change, that is negotiated in `prismal-server` /
@@ -84,8 +86,17 @@ uv run mypy prismal_webchat
 
 Local end-to-end: start a `prismal-server` (`uvicorn prismal_server.app:app`)
 and point the webchat at it via `PRISMAL_WEBCHAT_SERVER_URL` (defaults to
-`http://localhost:8000`). Until `prismal-sdk` is on PyPI, `uv sync` expects
-the sibling checkout at `../prismal-sdk` (`[tool.uv.sources]`).
+`http://localhost:8000`). The fake-LLM host for the contract suite is
+`pip install 'prismal-server>=0.3,<0.4'` in a **separate** venv (never in this
+one), started with `PRISMAL_SERVER_HOST_FAKE_LLM_MODE=true
+PRISMAL_SERVER_HOST_AGUI_ENABLED=true PRISMAL_AGUI_EVENTS_ENABLED=true`; point
+the suite at it with `PRISMAL_WEBCHAT_CONTRACT_URL`.
+
+Deploy: `Dockerfile` (single-port prod, frontend built at container start),
+`scripts/docker_smoke.sh`, `docs/deploy.md`. CI/release:
+`.github/workflows/{ci,release}.yml` — release ships a GHCR image + tag from
+`main` when `pyproject.toml` has a final, untagged version with a
+`CHANGELOG.md` entry.
 
 ## Boundary examples
 
