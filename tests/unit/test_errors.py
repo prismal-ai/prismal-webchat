@@ -22,6 +22,9 @@ GENERIC = "Something went wrong. Please try again."
         (api_error(503, "runtime_composition_error"), GENERIC, True),
         (api_error(403, "policy_denied", "rule 7"), "That request can't be processed.", True),
         (api_error(403, "permission_denied"), "That request can't be processed.", True),
+        # Host 0.2+ 403 codes; SDK 0.3 raises ForbiddenError for them on every route.
+        (api_error(403, "forbidden"), "That request can't be processed.", True),
+        (api_error(403, "forbidden_tenant"), "That request can't be processed.", True),
         (api_error(500, "internal_error", "Traceback ..."), GENERIC, True),
         (PrismalSDKError("weird"), GENERIC, True),
     ],

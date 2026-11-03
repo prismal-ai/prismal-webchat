@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from prismal_sdk import (
+    ForbiddenError,
     PermissionDeniedError,
     PolicyDeniedError,
     PrismalAPIError,
@@ -34,7 +35,8 @@ def friendly_error(exc: BaseException) -> FriendlyError:
         return FriendlyError(BUDGET_TEXT, retryable=False)
     if isinstance(exc, PrismalTransportError):
         return FriendlyError(UNREACHABLE_TEXT, retryable=True)
-    if isinstance(exc, PolicyDeniedError | PermissionDeniedError):
+    # ForbiddenError: host 0.2+ `forbidden` / `forbidden_tenant` (SDK 0.3).
+    if isinstance(exc, PolicyDeniedError | PermissionDeniedError | ForbiddenError):
         return FriendlyError(DENIED_TEXT, retryable=True)
     return FriendlyError(GENERIC_TEXT, retryable=True)
 

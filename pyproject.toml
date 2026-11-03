@@ -1,17 +1,18 @@
 [project]
 name = "prismal-webchat"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Embeddable web chat (Reflex BFF) for the prismal ecosystem"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Ernesto Crespo", email = "ecrespo@gmail.com" }]
 requires-python = ">=3.11"
-# Pins are deliberate (SPEC-WCB-NFR-005, DELTA-2026-10, DELTA-2026-11);
+# Pins are deliberate (SPEC-WCB-NFR-005, DELTA-2026-10, DELTA-2026-11, DELTA-2026-11-pypi);
 # tests/unit/test_dependencies.py fails on drift.
 dependencies = [
     "reflex>=0.10,<0.11",
     "reflex-silverpoint-react>=0.9.1,<0.10",
-    "prismal-sdk>=0.2.0.dev0,<1",
+    # prismal-sdk is published on PyPI as prismal-ai-sdk (import: prismal_sdk).
+    "prismal-ai-sdk>=0.3,<1",
     "pydantic-settings>=2.5,<3",
 ]
 
@@ -28,11 +29,6 @@ dev = [
 [tool.uv]
 # A deployable Reflex app, not a library (ARCHITECTURE §8): no wheel build.
 package = false
-
-[tool.uv.sources]
-# prismal-sdk is not on PyPI yet: resolve the sibling checkout for local dev.
-# Remove this entry once prismal-sdk 0.2.x is published (unblocks WCB-00-06 CI).
-prismal-sdk = { path = "../prismal-sdk", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -124,3 +124,24 @@ def test_run_finished_without_usage_is_fail_open() -> None:
     view, terminal = run(scripts.agui_text("x", usage=None), show_usage=True)
     assert terminal[-1] is True
     assert view.last.total_tokens is None
+
+
+def test_interrupted_run_finished_ends_turn_and_hides_interrupt_payload() -> None:
+    """SDK 0.3 / host 0.3: an interrupted run is still terminal for the widget.
+
+    The webchat has no resume UI (DELTA-2026-11-pypi §4): the turn ends with
+    the text streamed so far, and interrupt ids/payloads never reach the view.
+    """
+    finished = scripts.ag(
+        "RUN_FINISHED",
+        outcome={
+            "type": "interrupt",
+            "interrupts": [{"id": "int-SENTINEL-1", "value": {"question": "approve?"}}],
+        },
+    )
+    assert finished.is_interrupted  # type: ignore[attr-defined]
+    view, terminal = run([*scripts.text("Partial."), finished])
+    assert terminal[-1] is True
+    assert view.last.text == "Partial."
+    assert "int-SENTINEL-1" not in repr(view)
+    assert "approve?" not in repr(view)

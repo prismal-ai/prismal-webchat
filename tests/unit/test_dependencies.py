@@ -1,4 +1,4 @@
-"""SPEC-WCB-NFR-005 (as modified by DELTA-2026-10 and DELTA-2026-11).
+"""SPEC-WCB-NFR-005 (as modified by DELTA-2026-10, DELTA-2026-11 and DELTA-2026-11-pypi).
 
 Version pins are deliberate: a bump must be a reviewed PR, so drift fails here.
 """
@@ -16,11 +16,14 @@ PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 EXPECTED_PINS = {
     "reflex": SpecifierSet(">=0.10,<0.11"),
     "reflex-silverpoint-react": SpecifierSet(">=0.9.1,<0.10"),
-    "prismal-sdk": SpecifierSet(">=0.2.0.dev0,<1"),
+    # PyPI distribution of prismal-sdk; the import module is still prismal_sdk.
+    "prismal-ai-sdk": SpecifierSet(">=0.3,<1"),
 }
 
 # Engine / host must never be dependencies; httpx only arrives via the SDK.
-FORBIDDEN = {"prismal", "prismal-server", "httpx"}
+# The engine is published as ``prismal-ai``; ``prismal-sdk`` is the old,
+# never-published SDK name.
+FORBIDDEN = {"prismal", "prismal-ai", "prismal-server", "prismal-sdk", "httpx"}
 
 
 def _runtime_requirements() -> dict[str, Requirement]:
@@ -45,3 +48,11 @@ def test_no_forbidden_runtime_dependencies() -> None:
 def test_python_floor_supports_silverpoint() -> None:
     data = tomllib.loads(PYPROJECT.read_text())
     assert data["project"]["requires-python"] == ">=3.11"
+
+
+def test_sdk_resolves_from_pypi_not_a_local_path() -> None:
+    """CI and Docker cannot see a sibling checkout (DELTA-2026-11-pypi)."""
+    data = tomllib.loads(PYPROJECT.read_text())
+    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    assert "prismal-ai-sdk" not in sources
+    assert "prismal-sdk" not in sources
