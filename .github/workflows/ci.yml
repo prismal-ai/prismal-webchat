@@ -1,0 +1,175 @@
+# WCB-00-06 (SPEC-WCB-NFR-002) — ruff + mypy + pytest (unit, offline) on every
+# push/PR, plus the contract and compile suites on pull requests.
+#
+# The SDK resolves from PyPI (`prismal-ai-sdk`, DELTA-2026-11-pypi): no sibling
+# checkout. The contract job installs the published prismal-server 0.3.x wheel
+# into its own venv and starts it in fake-LLM mode, so it needs no provider
+# credentials and no private repository access.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_contract:
+        description: "Run the contract suite"
+        type: boolean
+        default: true
+      run_compile:
+        description: "Run the compile (frontend secret-scan) suite"
+        type: boolean
+        default: true
+      server_version:
+        description: "prismal-server version from PyPI (blank = >=0.3,<0.4)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: uv sync --locked
+      - name: Ruff
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Mypy
+        run: uv run mypy prismal_webchat
+      - name: Pytest (unit, offline)
+        run: uv run pytest --cov=prismal_webchat --cov-report=term-missing
+
+  package:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: uv build
+      # The installed artifact, from an empty directory (SPEC-WCB-REL-002).
+      - name: Smoke test (wheel, with reflex compile)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.whl "$GITHUB_WORKSPACE/scripts/smoke_test.py" --compile
+      - name: Smoke test (source distribution)
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --python 3.13 \
+            --with "$GITHUB_WORKSPACE"/dist/*.tar.gz "$GITHUB_WORKSPACE/scripts/smoke_test.py"
+
+  contract:
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_contract)
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      CONTRACT_URL: http://127.0.0.1:8765
+      HOST_REQUIREMENT: ${{ inputs.server_version && format('prismal-server=={0}', inputs.server_version) || 'prismal-server>=0.3,<0.4' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      # Its own venv: the host (and the engine it pulls in) must never leak
+      # into the webchat's environment (CLAUDE.md hard rule, SPEC-WCB-APP-002).
+      - name: Install prismal-server from PyPI
+        run: |
+          uv venv --python 3.13 "$RUNNER_TEMP/host"
+          uv pip install --python "$RUNNER_TEMP/host/bin/python" "$HOST_REQUIREMENT"
+          uv pip list --python "$RUNNER_TEMP/host/bin/python" | grep -i '^prismal'
+      - name: Start prismal-server (fake-LLM mode, AG-UI on)
+        env:
+          PRISMAL_SERVER_HOST_FAKE_LLM_MODE: "true"
+          PRISMAL_SERVER_HOST_ENVIRONMENT: development
+          PRISMAL_SERVER_HOST_AGUI_ENABLED: "true"
+          # Engine flag: without it the host refuses AG-UI with
+          # `protocol_not_enabled` even when HOST_AGUI_ENABLED is true.
+          PRISMAL_AGUI_EVENTS_ENABLED: "true"
+        run: |
+          cd "$RUNNER_TEMP"
+          nohup "$RUNNER_TEMP/host/bin/uvicorn" prismal_server.app:app \
+            --host 127.0.0.1 --port 8765 > "$RUNNER_TEMP/host.log" 2>&1 &
+      # The suite skips when no host answers; here a skip would be a false
+      # green, so assert the fake-mode host is really up.
+      - name: Assert fake-LLM host is up
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS -D - -o /dev/null "$CONTRACT_URL/healthz" \
+                | grep -qi '^x-prismal-fake-llm: 1'; then
+              echo "fake-LLM host is up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::prismal-server did not come up in fake-LLM mode"
+          cat "$RUNNER_TEMP/host.log"
+          exit 1
+      - name: Install
+        run: uv sync --locked
+      - name: Pytest (contract)
+        env:
+          PRISMAL_WEBCHAT_CONTRACT_URL: ${{ env.CONTRACT_URL }}
+        run: uv run pytest -m contract -v
+      - name: Host log
+        if: always()
+        run: cat "$RUNNER_TEMP/host.log" || true
+
+  compile:
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_compile)
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: uv sync --locked
+      # Compiles the real frontend with sentinel settings and scans it
+      # (SPEC-WCB-AUT-002, EMB-004).
+      - name: Pytest (compile)
+        run: uv run pytest -m compile -v
+
+  docker:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build image
+        run: docker build -t prismal-webchat:ci .
+      # The image must boot, serve the page and the loader, and carry the CSP
+      # (prod single-port mode is the only place the header exists).
+      - name: Smoke test image
+        run: scripts/docker_smoke.sh prismal-webchat:ci

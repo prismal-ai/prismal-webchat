@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo |
-| **Status** | `DRAFT` |
+| **Status** | `IMPLEMENTED` — `0.1.0` (released from `main` by `release.yml`; see `DELTA-2026-11-pypi.md`) |
 | **Version** | 1.0 |
 | **Date** | 2026-07-19 |
 | **Phase** | WCB (WebChat Bootstrap) |

@@ -1,0 +1,20 @@
+# Keep the build context to what the image needs (WCB-04-03).
+.git
+.github
+.venv
+.web
+.states
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+**/__pycache__
+*.py[cod]
+*.db
+.env
+.envrc
+.idea
+specs
+tests
+docs
+assets/external

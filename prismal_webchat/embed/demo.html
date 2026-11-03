@@ -1,0 +1,68 @@
+<!doctype html>
+<!--
+  prismal-webchat embedding demo (SPEC-WCB-EMB-005).
+
+  Serve this file from a DIFFERENT origin than the webchat, e.g.:
+
+    uv run python -m http.server 5500 --directory prismal_webchat/embed
+    open http://localhost:5500/demo.html?chat=http://localhost:8001
+
+  `?chat=` is the webchat origin (default http://localhost:3000, the dev
+  server). The frame-ancestors CSP is only sent by the Python backend, so
+  verify the allowlist against `uv run reflex run --env prod --single-port`
+  (everything on :8001).
+
+  Manual checklist (WCB-03-05):
+  1. PRISMAL_WEBCHAT_EMBED_ORIGINS='["http://localhost:5500"]'
+     → the launcher opens a working chat; "Close" inside it closes the widget;
+       Escape closes it; the buttons below drive window.PrismalChat.
+  2. Same server, open the demo from http://127.0.0.1:5500 instead
+     (a different origin) → the iframe is refused by the browser (CSP).
+  3. PRISMAL_WEBCHAT_EMBED_ORIGINS unset → refused from any other origin.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Embedding demo</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 640px;
+        margin: 48px auto;
+        padding: 0 16px;
+        line-height: 1.5;
+        color: #222;
+        background: #fafafa;
+      }
+      code { background: #eee; padding: 1px 4px; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <h1>A host page</h1>
+    <p>
+      This page stands for any third-party site. It embeds the chat with one
+      script tag; the launcher appears bottom-right.
+    </p>
+    <p>
+      Webchat origin: <code id="origin"></code><br />
+      Host origin: <code id="host"></code>
+    </p>
+    <p>
+      <button type="button" onclick="window.PrismalChat && window.PrismalChat.open()">Open</button>
+      <button type="button" onclick="window.PrismalChat && window.PrismalChat.close()">Close</button>
+    </p>
+    <script>
+      (function () {
+        var chat = new URLSearchParams(location.search).get("chat") || "http://localhost:3000";
+        var origin = new URL(chat).origin;
+        document.getElementById("origin").textContent = origin;
+        document.getElementById("host").textContent = location.origin;
+        var s = document.createElement("script");
+        s.src = origin + "/embed.js";
+        s.async = true;
+        document.body.appendChild(s);
+      })();
+    </script>
+  </body>
+</html>
